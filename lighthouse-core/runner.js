@@ -28,6 +28,7 @@ class Runner {
   static run(driver, opts) {
     // Clean opts input.
     opts.flags = opts.flags || {};
+    let artifactsForLater;
 
     // Default mobile emulation and page loading to true.
     // The extension will switch these off initially.
@@ -81,8 +82,7 @@ class Runner {
       /* istanbul ignore next */
       if (opts.flags.saveArtifacts || opts.flags.saveAssets) {
         run = run.then(artifacts => {
-          opts.flags.saveArtifacts && assetSaver.saveArtifacts(artifacts);
-          opts.flags.saveAssets && assetSaver.saveAssets(opts, artifacts);
+          artifactsForLater = artifacts;
           return artifacts;
         });
       }
@@ -106,6 +106,16 @@ class Runner {
     } else {
       throw new Error(
           'The config must provide passes and audits, artifacts and audits, or auditResults');
+    }
+
+    /* istanbul ignore next */
+    if (opts.flags.saveArtifacts || opts.flags.saveAssets) {
+      // save assets to disk after audits, so we can integrate the metrics results
+      run = run.then(auditResults => {
+        opts.flags.saveArtifacts && assetSaver.saveArtifacts(artifactsForLater);
+        opts.flags.saveAssets && assetSaver.saveAssets(opts, artifactsForLater, auditResults);
+        return auditResults;
+      });
     }
 
     // Only run aggregations if needed.
